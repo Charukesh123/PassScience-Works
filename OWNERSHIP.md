@@ -1,0 +1,2 @@
+# Ownership statement
+Original work: none claimed by the candidate until they review, modify and take ownership. Code in this package was generated with AI assistance (see AI_USE_LOG.md) from the assignment text; no third-party source code is reused and no third-party libraries are bundled. Data files are self-created (CC0). [CANDIDATE: edit this to honestly reflect your own contribution before submitting.]

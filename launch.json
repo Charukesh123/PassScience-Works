@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Workbench: run packaged Launch.exe",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "start \"\" \"${workspaceFolder}\\Launch.exe\"",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

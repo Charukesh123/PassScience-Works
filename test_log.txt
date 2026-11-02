@@ -1,0 +1,7 @@
+Test log (GCC 13.3.0, Ubuntu 24.04, 1 logical CPU)
+-- Release -O2:
+104 checks, 0 failed
+-- AddressSanitizer+UBSan:
+104 checks, 0 failed
+-- ThreadSanitizer (race check of worker pool):
+104 checks, 0 failed

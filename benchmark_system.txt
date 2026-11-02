@@ -1,0 +1,8 @@
+cpu: Intel(R) Xeon(R) Processor @ 2.80GHz
+physical_cores: 1
+logical_cpus: 1
+ram_GiB: 3.90215
+compiler: GCC/Clang 13.3.0
+flags: -O2 -std=c++17 -pthread
+workload: 3000 cases x 4000 elements, seed 42, k in [1,100], q in [1e3,1e5]
+protocol: 1 warm-up (excluded), 5 measured repetitions, median reported; compute only (no I/O/rendering)

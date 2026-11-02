@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unified Engineering Workbench</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1c2230;--card:#fff;--bd:#d5d9e0;--ac:#1f5fbf;--bad:#b3261e;--ok:#1b7a3a;--mut:#667}
+@media (prefers-color-scheme:dark){:root{--bg:#14171d;--fg:#e6e9ef;--card:#1d222b;--bd:#323946;--ac:#6ea8ff;--bad:#ff8a80;--ok:#6fd28f;--mut:#9aa3b2}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{display:flex;gap:12px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--bd);background:var(--card);flex-wrap:wrap}
+h1{font-size:16px;margin:0 12px 0 0}nav button{background:none;border:0;padding:8px 12px;cursor:pointer;color:var(--fg);border-bottom:2px solid transparent;font:inherit}
+nav button.on{border-color:var(--ac);color:var(--ac);font-weight:600}
+main{padding:14px;max-width:1200px;margin:auto}section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:2px}
+input{font:inherit;padding:5px 7px;border:1px solid var(--bd);border-radius:5px;background:var(--bg);color:var(--fg);width:110px}
+button.b{font:inherit;padding:6px 12px;border:1px solid var(--ac);background:var(--ac);color:#fff;border-radius:5px;cursor:pointer}
+button.b.s{background:none;color:var(--ac)}button:disabled{opacity:.5;cursor:default}
+canvas{width:100%;background:var(--card);border:1px solid var(--bd);border-radius:6px;touch-action:none}
+#banner{display:none;padding:8px 14px;background:var(--bad);color:#fff}#status{margin-left:auto;color:var(--mut);font-size:12px}
+table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--bd);padding:4px 8px;text-align:right}th:first-child,td:first-child{text-align:left}
+.tag{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;border:1px solid var(--bd)}.sim{background:#ffe9a8;color:#5a4300;border-color:#e0c25a}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}progress{width:220px}pre{white-space:pre-wrap;margin:0;font-size:12px}.mut{color:var(--mut)}
+</style></head><body>
+<header><h1>Unified Engineering Workbench</h1>
+<nav id="nav"><button data-t="geo" class="on">Geometry</button><button data-t="th">Thermal Analysis</button><button data-t="perf">Performance</button><button data-t="hw">Hardware</button><button data-t="bp">Backprop</button></nav>
+<span id="status">starting…</span></header>
+<div id="banner" role="alert"></div>
+<main>
+<section id="geo" class="on">
+ <div class="card"><div class="row">
+  <label>ASCII STL file<input type="file" id="stlf" accept=".stl" style="width:230px"></label>
+  <label>ANSYS-style nodal CSV<input type="file" id="csvf" accept=".csv" style="width:230px"></label>
+  <button class="b s" id="loadSample">Load bundled samples</button><button class="b s" id="fit">Fit to view</button>
+ </div><div class="mut" id="geoInfo" style="margin-top:6px">Drag = rotate · Shift/right-drag = pan · wheel = zoom · click a point to inspect. Units: metres, °C. Max file size 100 MB.</div></div>
+ <div class="grid"><div><b>STL triangles</b><canvas id="cs" width="560" height="420"></canvas></div>
+ <div><b>Nodal temperature (point cloud)</b><canvas id="cp" width="560" height="420"></canvas>
+  <div class="row" style="margin-top:6px"><canvas id="leg" width="260" height="18" style="width:260px;height:18px"></canvas><span id="legTxt"></span></div><div id="inspect" class="mut">No node selected.</div></div></div>
+</section>
+<section id="th">
+ <div class="card"><div class="row">
+  <label>L (m)<input id="pL" value="1"></label><label>A (m²)<input id="pA" value="1e-4"></label><label>k (W/m·K)<input id="pk" value="10"></label><label>q (W/m³)<input id="pq" value="10000"></label>
+  <label>T(0) (°C)<input id="pT0" value="100"></label><label>T(L) (°C)<input id="pTL" value="20"></label>
+  <button class="b" id="runFea">Solve N = 10, 20, 40, 80</button><button class="b s" id="expFea">Export solution CSV</button><button class="b s" id="expSum">Export error CSV</button>
+ </div></div>
+ <canvas id="fea" width="1100" height="420"></canvas>
+ <div class="card" style="margin-top:12px"><table id="feaTab"></table>
+ <p class="mut">Model: −d/dx(kA dT/dx) = qA, two-node linear elements, Dirichlet T(0), T(L), insulated sides, constant properties. Errors at element midpoints use the FE (linearly interpolated) solution against T_exact = T0 + (TL−T0)x/L + q/(2k)·x(L−x). Nodal values are exact to round-off for this problem (1-D superconvergence), so midpoint error is the meaningful measure; it falls 4× per mesh doubling (order 2).</p></div>
+</section>
+<section id="perf">
+ <div class="card"><div class="row">
+  <label>Cases<input id="bc" value="2000"></label><label>Elements / case<input id="bn" value="2000"></label><label>Repetitions<input id="br" value="5"></label><label>Seed<input id="bs" value="42"></label>
+  <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="bo" style="width:auto"> allow workers &gt; logical CPUs (correctness demo only)</label>
+  <button class="b" id="bgo">Run benchmark</button><button class="b s" id="bx" disabled>Cancel</button><button class="b s" id="bcsv" disabled>Export CSV</button>
+ </div><div style="margin-top:8px"><progress id="bp" value="0" max="1"></progress> <span id="bmsg" class="mut">idle</span></div></div>
+ <div class="card"><div id="bsys" class="mut"></div><table id="btab"></table><p class="mut" id="bnote"></p></div>
+</section>
+<section id="hw">
+ <div class="card"><span class="tag sim">SIMULATED — no physical hardware is accessed</span> <button class="b s" id="hwr">Discover devices</button></div>
+ <div class="grid" id="hwc"></div>
+ <div class="card"><b>Event log</b><pre id="hwlog" class="mut"></pre></div>
+</section>
+<section id="bp">
+ <div class="card"><button class="b" id="bpr">Run backprop check</button><pre id="bpt" style="margin-top:8px"></pre></div><canvas id="bpc" width="1100" height="360"></canvas>
+</section>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function showErr(m){const b=$('banner');b.textContent=m;b.style.display=m?'block':'none';if(m)console.error(m)}
+async function api(path,opt){const r=await fetch(path,opt);const t=await r.text();let j;try{j=JSON.parse(t)}catch{ if(!r.ok) throw new Error(t); return t}
+ if(!r.ok||j.error) throw new Error(j.error||('HTTP '+r.status)); return j}
+function save(name,text,type='text/csv'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$('nav').onclick=e=>{const t=e.target.dataset.t;if(!t)return;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===e.target));document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===t));draw()};
+function fit(c){const d=devicePixelRatio||1,w=c.clientWidth,h=Math.round(w*c.height/c.width/(c._d||1));if(c._w!==w){c._d=d;c.width=w*d;c.height=h*d;c.style.height=h+'px';c._w=w}return [c.getContext('2d'),c.width,c.height,d]}
+
+/* ---------- 3-D camera shared by STL and point cloud ---------- */
+class Cam{constructor(cv,onchange){this.cv=cv;this.on=onchange;this.reset();let drag=null;
+ cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,pan:e.shiftKey||e.button===2,moved:0}};
+ cv.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;drag.moved+=Math.abs(dx)+Math.abs(dy);
+  if(drag.pan){this.px+=dx;this.py+=dy}else{this.ry+=dx*.01;this.rx+=dy*.01}this.on()};
+ cv.onpointerup=e=>{if(drag&&drag.moved<4&&this.click)this.click(e);drag=null};cv.oncontextmenu=e=>e.preventDefault();
+ cv.onwheel=e=>{e.preventDefault();this.zoom*=Math.exp(-e.deltaY*.001);this.on()};}
+ reset(){this.rx=-.4;this.ry=.6;this.zoom=1;this.px=0;this.py=0}
+ setBounds(min,max){this.c=[0,1,2].map(i=>(min[i]+max[i])/2);this.r=Math.hypot(...[0,1,2].map(i=>max[i]-min[i]))/2||1;this.reset()}
+ proj(x,y,z,W,H){x-=this.c[0];y-=this.c[1];z-=this.c[2];const cy=Math.cos(this.ry),sy=Math.sin(this.ry),cx=Math.cos(this.rx),sx=Math.sin(this.rx);
+  let X=x*cy+z*sy,Z=-x*sy+z*cy,Y=y*cx-Z*sx;Z=y*sx+Z*cx;const s=this.zoom*Math.min(W,H)*.45/this.r;return [W/2+this.px*(this.d||1)+X*s,H/2+this.py*(this.d||1)-Y*s,Z]}}
+const camS=new Cam($('cs'),()=>draw()),camP=new Cam($('cp'),()=>draw());
+let stl=null,pts=null,sel=-1;
+function lerp(a,b,t){return a+(b-a)*t}
+function cmap(t){t=Math.max(0,Math.min(1,t));const st=[[0,[49,54,149]],[.25,[69,117,180]],[.5,[255,255,191]],[.75,[244,109,67]],[1,[165,0,38]]];
+ for(let i=1;i<st.length;i++)if(t<=st[i][0]){const u=(t-st[i-1][0])/(st[i][0]-st[i-1][0]),a=st[i-1][1],b=st[i][1];return `rgb(${lerp(a[0],b[0],u)|0},${lerp(a[1],b[1],u)|0},${lerp(a[2],b[2],u)|0})`}return 'rgb(165,0,38)'}
+function drawStl(){const [g,W,H,d]=fit($('cs'));camS.d=d;g.clearRect(0,0,W,H);g.font=12*d+'px sans-serif';g.fillStyle=css('--mut');
+ if(!stl){g.fillText('No STL loaded',10*d,20*d);return}
+ const v=stl.v,n=stl.triangles,P=new Float32Array(n*9),dep=[];const step=Math.max(1,Math.ceil(n/60000));
+ for(let t=0;t<n;t+=step){const q=[0,1,2].map(i=>camS.proj(v[t*9+i*3],v[t*9+i*3+1],v[t*9+i*3+2],W,H));dep.push([t,(q[0][2]+q[1][2]+q[2][2])/3,q])}
+ dep.sort((a,b)=>a[1]-b[1]);
+ for(const [t,,q] of dep){g.fillStyle=`hsl(215 30% ${40+20*Math.abs(Math.sin(t))}%)`;g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=d*.5;g.beginPath();g.moveTo(q[0][0],q[0][1]);g.lineTo(q[1][0],q[1][1]);g.lineTo(q[2][0],q[2][1]);g.closePath();g.fill();g.stroke()}
+ g.fillStyle=css('--mut');g.fillText(`${n} triangles${step>1?` (showing every ${step}th for speed)`:''} · units: m`,10*d,H-8*d)}
+function drawPts(){const [g,W,H,d]=fit($('cp'));camP.d=d;g.clearRect(0,0,W,H);g.font=12*d+'px sans-serif';g.fillStyle=css('--mut');
+ if(!pts){g.fillText('No CSV loaded',10*d,20*d);return}
+ const n=pts.count,pr=[],span=(pts.Tmax-pts.Tmin)||1;for(let i=0;i<n;i++){const p=camP.proj(pts.x[i],pts.y[i],pts.z[i],W,H);pr.push([i,p])}
+ camP._pr=pr;pr.sort((a,b)=>a[1][2]-b[1][2]);
+ for(const [i,p] of pr){g.fillStyle=cmap((pts.T[i]-pts.Tmin)/span);g.beginPath();g.arc(p[0],p[1],(i===sel?6:3.5)*d,0,7);g.fill();if(i===sel){g.strokeStyle=css('--fg');g.lineWidth=2*d;g.stroke()}}
+ const l=$('leg'),lg=l.getContext('2d');for(let x=0;x<260;x++){lg.fillStyle=cmap(x/259);lg.fillRect(x,0,1,18)}
+ $('legTxt').textContent=`${pts.Tmin.toFixed(2)} °C  →  ${pts.Tmax.toFixed(2)} °C  (${n} nodes)`}
+camP.click=e=>{const c=$('cp'),r=c.getBoundingClientRect(),mx=(e.clientX-r.left)*c.width/r.width,my=(e.clientY-r.top)*c.height/r.height;let best=-1,bd=(16*(camP.d||1))**2;
+ for(const [i,p] of camP._pr||[]){const dd=(p[0]-mx)**2+(p[1]-my)**2;if(dd<=bd){bd=dd;best=i}}sel=best;
+ $('inspect').textContent=best<0?'No node selected.':`node ${pts.id[best]}: x=${pts.x[best]} m, y=${pts.y[best]} m, z=${pts.z[best]} m, T=${pts.T[best]} °C`;draw()};
+async function loadStl(text){const j=await api('/api/stl',{method:'POST',body:text});j.v=new Float32Array(j.v);stl=j;camS.setBounds(j.bmin,j.bmax);return j}
+async function loadCsv(text){const j=await api('/api/csv',{method:'POST',body:text});pts=j;sel=-1;camP.setBounds([Math.min(...j.x),Math.min(...j.y),Math.min(...j.z)],[Math.max(...j.x),Math.max(...j.y),Math.max(...j.z)]);return j}
+function pickFile(inp,fn,label){inp.onchange=async()=>{const f=inp.files[0];if(!f)return;showErr('');if(f.size>100*1024*1024){showErr(`${f.name}: ${(f.size/1048576).toFixed(0)} MB exceeds the 100 MB limit.`);return}
+ try{$('status').textContent='Parsing '+f.name+'…';const j=await fn(await f.text());$('geoInfo').textContent=`${label}: ${f.name} loaded.`;}catch(e){showErr(`${label} '${f.name}' rejected — ${e.message}`)}$('status').textContent='ready';draw()}}
+pickFile($('stlf'),loadStl,'STL');pickFile($('csvf'),loadCsv,'CSV');
+$('fit').onclick=()=>{camS.reset();camP.reset();draw()};
+$('loadSample').onclick=async()=>{showErr('');try{const[a,b]=await Promise.all([fetch('/data/rod_cylinder.stl').then(r=>r.text()),fetch('/data/ansys_synthetic_nodal_temperature.csv').then(r=>r.text())]);await loadStl(a);await loadCsv(b);$('geoInfo').textContent='Bundled samples loaded (CSV is SYNTHETIC, not a real ANSYS export; see data/PROVENANCE.md).'}catch(e){showErr('Could not load samples: '+e.message)}draw()};
+
+/* ---------- generic line plot ---------- */
+function plot(cv,series,o){const [g,W,H,d]=fit(cv);g.clearRect(0,0,W,H);const m={l:70*d,r:20*d,t:28*d,b:46*d},w=W-m.l-m.r,h=H-m.t-m.b;
+ let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;for(const s of series)for(let i=0;i<s.x.length;i++){x0=Math.min(x0,s.x[i]);x1=Math.max(x1,s.x[i]);y0=Math.min(y0,s.y[i]);y1=Math.max(y1,s.y[i])}
+ if(o.ylog){y0=Math.max(y0,1e-12)}const pad=(y1-y0)*.05||1;if(!o.ylog){y0-=pad;y1+=pad}
+ const X=v=>m.l+(v-x0)/((x1-x0)||1)*w,Y=v=>o.ylog?m.t+h-(Math.log10(v)-Math.log10(y0))/((Math.log10(y1)-Math.log10(y0))||1)*h:m.t+h-(v-y0)/((y1-y0)||1)*h;
+ g.strokeStyle=css('--bd');g.fillStyle=css('--mut');g.font=11*d+'px sans-serif';g.lineWidth=d;
+ for(let i=0;i<=5;i++){const xv=x0+(x1-x0)*i/5,yv=o.ylog?10**(Math.log10(y0)+(Math.log10(y1)-Math.log10(y0))*i/5):y0+(y1-y0)*i/5;g.beginPath();g.moveTo(X(xv),m.t);g.lineTo(X(xv),m.t+h);g.moveTo(m.l,Y(yv));g.lineTo(m.l+w,Y(yv));g.stroke();
+  g.fillText(xv.toPrecision(3),X(xv)-12*d,m.t+h+14*d);g.fillText(o.ylog?yv.toExponential(1):yv.toFixed(1),6*d,Y(yv)+4*d)}
+ g.fillStyle=css('--fg');g.font=12*d+'px sans-serif';g.fillText(o.title,m.l,16*d);g.fillText(o.xl,m.l+w/2-40*d,H-8*d);g.save();g.translate(14*d,m.t+h/2+30*d);g.rotate(-Math.PI/2);g.fillText(o.yl,0,0);g.restore();
+ const cols=['#e69f00','#56b4e9','#009e73','#cc79a7','#888'];let lx=m.l+w-150*d,ly=m.t+8*d;
+ series.forEach((s,k)=>{g.strokeStyle=s.c||cols[k%5];g.fillStyle=g.strokeStyle;g.lineWidth=(s.w||2)*d;g.setLineDash(s.dash?[6*d,4*d]:[]);g.beginPath();s.x.forEach((xv,i)=>{i?g.lineTo(X(xv),Y(s.y[i])):g.moveTo(X(xv),Y(s.y[i]))});g.stroke();
+  if(s.pts){s.x.forEach((xv,i)=>{g.beginPath();g.arc(X(xv),Y(s.y[i]),3*d,0,7);g.fill()})}
+  g.setLineDash([]);g.fillRect(lx,ly+k*15*d-6*d,14*d,3*d);g.fillStyle=css('--fg');g.fillText(s.n,lx+20*d,ly+k*15*d)})}
+
+/* ---------- thermal ---------- */
+let feaData=null;const fq=()=>new URLSearchParams({L:$('pL').value,A:$('pA').value,k:$('pk').value,q:$('pq').value,T0:$('pT0').value,TL:$('pTL').value}).toString();
+async function runFea(){showErr('');try{feaData=await api('/api/fea/convergence?'+fq());drawFea();
+ $('feaTab').innerHTML='<tr><th>N elements</th><th>h (m)</th><th>max |error| nodes (°C)</th><th>max |error| midpoints (°C)</th><th>observed order</th></tr>'+feaData.meshes.map((m,i)=>{const h=(+$('pL').value)/m.n,p=feaData.meshes[i-1];return `<tr><td>${m.n}</td><td>${h.toPrecision(4)}</td><td>${m.err_nodes.toExponential(2)}</td><td>${m.err_mid.toPrecision(6)}</td><td>${p?Math.log2(p.err_mid/m.err_mid).toFixed(3):'–'}</td></tr>`}).join('')}catch(e){showErr(e.message)}}
+function drawFea(){if(!feaData)return;const s=[{n:'exact',x:feaData.exact.x,y:feaData.exact.T,c:css('--fg'),dash:1,w:2.5}];feaData.meshes.forEach(m=>s.push({n:'FE N='+m.n,x:m.x,y:m.T,pts:m.n<=20}));
+ plot($('fea'),s,{title:'Temperature along the rod',xl:'x (m)',yl:'Temperature T (°C)'})}
+$('runFea').onclick=runFea;
+$('expFea').onclick=async()=>{try{save('fea_solution.csv',await api('/api/fea/csv?'+fq()))}catch(e){showErr(e.message)}};
+$('expSum').onclick=async()=>{try{save('fea_convergence.csv',await api('/api/fea/summary.csv?'+fq()))}catch(e){showErr(e.message)}};
+
+/* ---------- performance (background job, polled) ---------- */
+let benchRes=null,poll=null;
+$('bgo').onclick=async()=>{showErr('');const q=new URLSearchParams({cases:$('bc').value,n:$('bn').value,reps:$('br').value,seed:$('bs').value,oversub:$('bo').checked?1:0});
+ try{await api('/api/bench/start?'+q,{method:'POST'});$('bgo').disabled=true;$('bx').disabled=false;poll=setInterval(pollJob,250)}catch(e){showErr(e.message)}};
+$('bx').onclick=()=>api('/api/job/cancel',{method:'POST'});
+async function pollJob(){try{const j=await api('/api/job');$('bp').max=j.total||1;$('bp').value=j.done;$('bmsg').textContent=j.state+(j.message?': '+j.message:'');
+ if(j.state!=='running'){clearInterval(poll);$('bgo').disabled=false;$('bx').disabled=true;if(j.state==='done'){benchRes=j.result;showBench();$('bcsv').disabled=false}else if(j.state==='error')showErr(j.message)}}catch(e){clearInterval(poll);showErr(e.message)}}
+function showBench(){const r=benchRes,s=r.system;$('bsys').textContent=`CPU: ${s.cpu} · physical ${s.physical} / logical ${s.logical} · RAM ${s.ram_GiB.toFixed(1)} GiB · ${s.compiler} · flags: ${s.flags} · workload: ${r.workload.cases} cases × ${r.workload.elements} elements, seed ${r.workload.seed}, ${r.workload.warmup} warm-up + ${r.workload.reps} reps (median) · launch-to-ready (main() to listening): ${r.launch_to_ready_ms.toFixed(1)} ms`;
+ $('btab').innerHTML='<tr><th>workers</th><th>median (s)</th><th>speedup T1/Tp</th><th>efficiency</th><th>max |Δ| vs serial (°C)</th><th>agree ≤1e-8</th></tr>'+r.rows.map(x=>`<tr><td>${x.workers}${x.oversubscribed?' (oversubscribed)':''}</td><td>${x.median_s.toFixed(4)}</td><td>${x.speedup.toFixed(2)}</td><td>${x.efficiency.toFixed(2)}</td><td>${x.max_abs_diff_C.toExponential(1)}</td><td>${x.agree?'yes':'NO'}</td></tr>`).join('');
+ $('bnote').textContent=s.logical<2?'Only one logical CPU is available: the parallel path ran and agrees with serial, but speedup cannot be assessed on this machine.':'Speedup is limited by memory bandwidth, thread start-up, and the small per-case work; timings exclude file I/O and rendering.'}
+$('bcsv').onclick=()=>{const r=benchRes;save('benchmark.csv','workers,median_s,speedup,efficiency,max_abs_diff_C,oversubscribed\n'+r.rows.map(x=>[x.workers,x.median_s,x.speedup,x.efficiency,x.max_abs_diff_C,x.oversubscribed].join(',')).join('\n')+'\n')};
+
+/* ---------- hardware (simulated) ---------- */
+function showHw(j){const s=j.state||j;$('hwc').innerHTML=s.devices.map(d=>`<div class="card"><b>${d.name}</b> <span class="tag sim">SIMULATED</span><div class="mut">${d.role}<br>Interface: ${d.interface}</div><div>Capabilities: ${d.capabilities.join(', ')}</div><div>State: <b style="color:${d.state==='connected'?'var(--ok)':'var(--mut)'}">${d.state}</b></div><div class="row" style="margin-top:6px"><button class="b" data-a="connect" data-i="${d.id}">Connect</button><button class="b s" data-a="disconnect" data-i="${d.id}">Disconnect</button><button class="b s" data-a="telemetry" data-i="${d.id}">Telemetry</button></div><pre id="t_${d.id}"></pre></div>`).join('');$('hwlog').textContent=s.log}
+$('hwc').onclick=async e=>{const a=e.target.dataset.a;if(!a)return;showErr('');try{const j=await api(`/api/device/${a}?id=${e.target.dataset.i}`);showHw(j);const pre=$('t_'+e.target.dataset.i);
+ if(!j.ok)showErr(`${e.target.dataset.i}: ${j.code} — ${j.message}`);if(j.telemetry)pre.textContent='[SIMULATED] sample #'+j.telemetry.seq+'\n'+Object.entries(j.telemetry.fields).map(([k,v])=>k+' = '+v).join('\n')}catch(e){showErr(e.message)}};
+$('hwr').onclick=async()=>{try{showHw(await api('/api/devices'))}catch(e){showErr(e.message)}};
+
+/* ---------- backprop ---------- */
+$('bpr').onclick=async()=>{try{const j=await api('/api/backprop'),f=n=>(+n).toPrecision(8);
+ $('bpt').textContent=`forward: z=${f(j.forward.z)}  h=${f(j.forward.h)}  y_hat=${f(j.forward.yhat)}  J=${f(j.forward.J)}\nanalytic : dw=${f(j.analytic.dw)} db=${f(j.analytic.db)} dv=${f(j.analytic.dv)} dc=${f(j.analytic.dc)}\nnumeric  : dw=${f(j.numeric.dw)} db=${f(j.numeric.db)} dv=${f(j.numeric.dv)} dc=${f(j.numeric.dc)}\nmax |analytic−numeric| = ${j.max_err.toExponential(2)} (tolerance 1e-5) → ${j.max_err<=1e-5?'PASS':'FAIL'}\nupdated: w=${f(j.updated.w)} b=${f(j.updated.b)} v=${f(j.updated.v)} c=${f(j.updated.c)}`;
+ window._loss=j.loss;draw()}catch(e){showErr(e.message)}};
+function drawBp(){if(!window._loss)return;plot($('bpc'),[{n:'loss J',x:window._loss.map((_,i)=>i),y:window._loss.map(v=>Math.max(v,1e-20))}],{title:'Training loss, lr = 0.1 (log scale)',xl:'step',yl:'J',ylog:1})}
+function draw(){drawStl();drawPts();drawFea();drawBp()}
+addEventListener('resize',draw);
+(async()=>{try{const s=await api('/api/status');$('status').textContent=`ready · ${s.logical} logical CPU(s) · launch-to-ready ${s.ready_ms.toFixed(1)} ms`}catch(e){showErr('Backend unreachable: '+e.message)}draw();runFea();$('hwr').click()})();
+</script></body></html>

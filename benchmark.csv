@@ -1,0 +1,4 @@
+workers,median_s,speedup_T1_over_Tp,efficiency,max_abs_diff_vs_serial_C,reps_s,note
+1,0.252247303,1,1,0,0.252914306;0.26780771;0.252247303;0.246480972;0.242181705,
+2,0.245011212,1.02953371,0.514766857,0,0.258439123;0.245011212;0.238370839;0.237962864;0.248509727,OVERSUBSCRIBED: workers > logical CPUs; correctness demo only, speedup not assessable
+4,0.241042607,1.0464843,0.261621074,0,0.245107767;0.240241036;0.244500715;0.240975286;0.241042607,OVERSUBSCRIBED: workers > logical CPUs; correctness demo only, speedup not assessable

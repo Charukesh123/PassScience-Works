@@ -1,0 +1,14 @@
+dc7a43d docs: README, report, embedded design, backprop solution, AI log, ownership
+cd57b4c results: raw CSVs, plots, benchmark and test logs
+8f09af2 build: CMake, Windows staging script, VS Code run configuration, gitignore
+7876d92 data: synthetic example files with provenance
+839e5b9 ui: single-file frontend (geometry, thermal, performance, hardware, backprop)
+623f298 app: loopback HTTP transport, JSON API, benchmark job with cancel
+8cd0619 tools: headless evidence CLI, plotting and sample-data generators
+0be85a6 tests: 104-check unit suite (positive, negative, numerical, concurrency)
+add7030 core: system info for benchmark reports (guards empty /proc/cpuinfo values)
+6cc395e core: simulated MCU/FPGA/JTAG adapters with injected recoverable timeout
+ec2fffd core: ASCII STL and nodal CSV parsers with validation messages
+49327df core: hand-derived backprop with central-difference gradient check
+ecb2859 core: seeded batch generator, serial runner and bounded worker pool with cancel
+87d22ff core: 1-D thermal FEM solver with Dirichlet elimination and midpoint-error metric
