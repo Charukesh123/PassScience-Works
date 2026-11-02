@@ -1,0 +1,24 @@
+name: build-windows
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure and build (MSVC, static runtime)
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+      - name: Run unit tests
+        run: build\Release\wb_tests.exe
+      - name: Stage runnable folder
+        shell: cmd
+        run: |
+          mkdir out
+          copy build\Release\Launch.exe out\
+          xcopy /e /i build\Release\ui out\ui
+          xcopy /e /i build\Release\data out\data
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Workbench-Windows
+          path: out
